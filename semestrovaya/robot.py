@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox  # <-- ДОБАВЛЕНО: для всплывающего окна
 
 # ========== МИР ==========
 class World:
@@ -37,9 +38,9 @@ class Robot:
         self.cargo = None
         self.log = []
         
-        # Новые атрибуты для рисования
+        # Атрибуты для рисования
         self.is_painting = False
-        self.paint_trail = []  # Список координат (x, y) для отрисовки линии
+        self.paint_trail = []
 
     @property
     def direction(self):
@@ -103,10 +104,7 @@ class Robot:
     def at_goal(self, world):
         return world.goal and (self.x, self.y) == world.goal
 
-    # ========== НОВЫЕ МЕТОДЫ РОБОТА ==========
-    
     def jump(self, world):
-        """Прыжок через одну клетку. Промежуточная клетка может быть препятствием."""
         dx, dy = self.DIRECTIONS[self.dir_index]
         nx, ny = self.x + 2 * dx, self.y + 2 * dy
         
@@ -121,7 +119,6 @@ class Robot:
             return False
 
     def break_wall(self, world):
-        """Ломает препятствие прямо перед роботом, если оно есть."""
         dx, dy = self.DIRECTIONS[self.dir_index]
         nx, ny = self.x + dx, self.y + dy
         
@@ -134,34 +131,25 @@ class Robot:
             return False
 
     def start_paint(self):
-        """Включает режим рисования."""
         self.is_painting = True
         if (self.x, self.y) not in self.paint_trail:
             self.paint_trail.append((self.x, self.y))
         self._log("Режим рисования включен")
 
     def stop_paint(self):
-        """Выключает режим рисования."""
         self.is_painting = False
         self._log("Режим рисования выключен")
 
 
 # ========== ИНТЕРПРЕТАТОР ОДНОЙ КОМАНДЫ ==========
 def execute_one_command(robot, world, cmd_text):
-    """
-    Выполняет одну команду. Поддерживает числа в скобках:
-    move(7) - двигаться 7 раз
-    turn_right(2) - повернуть направо 2 раза
-    """
-    # Парсим: "move(7)" -> ["move", "7"]
     cmd = cmd_text.lower().replace("(", " ").replace(")", " ").split()
     if not cmd:
         return "пустая строка"
 
     name = cmd[0]
-    count = 1  # по умолчанию 1 раз
+    count = 1
 
-    # Если есть число в скобках
     if len(cmd) > 1:
         try:
             count = int(cmd[1])
@@ -171,11 +159,10 @@ def execute_one_command(robot, world, cmd_text):
             robot._log(f"Ошибка: некорректное число в '{cmd_text}'")
             return name
 
-    # Выполняем команду count раз
     for i in range(count):
         if name == "move":
             result = robot.move(world)
-            if not result:  # уперлись в стену — останавливаемся
+            if not result:
                 break
         elif name == "turn_left":
             robot.turn_left()
@@ -187,7 +174,6 @@ def execute_one_command(robot, world, cmd_text):
             robot.take(world)
         elif name == "drop":
             robot.drop(world)
-        # Новые команды
         elif name == "jump":
             result = robot.jump(world)
             if not result:
@@ -221,11 +207,14 @@ class RobotSimulatorApp:
             self.world.add_obstacle(x, y)
         self.world.add_item(2, 2, "коробка")
         self.world.add_item(8, 8, "посылка")
+        
+        # <-- ДОБАВЛЕНО: запоминаем общее количество предметов на уровне
+        self.total_items = len(self.world.items)
+        
         self.world.set_goal(9, 9)
 
         self.robot = Robot(0, 0)
 
-        # Для пошагового выполнения
         self.commands = []
         self.current_index = 0
         self.running = False
@@ -250,10 +239,6 @@ class RobotSimulatorApp:
         self.code.pack()
         self.code.insert("1.0",
             "# Пример программы\n"
-            "# move(n) - двигаться n раз\n"
-            "# jump() - прыжок через 1 клетку\n"
-            "# break() - сломать стену перед собой\n"
-            "# paint() / stop_paint() - рисовать след\n"
             "move(2)\n"
             "turn_right()\n"
             "move(1)\n"
@@ -264,7 +249,12 @@ class RobotSimulatorApp:
             "turn_right()\n"
             "move(1)\n"
             "break()\n"
-            "move(1)\n")
+            "move(1)\n"
+            "turn_left()\n"
+            "move(1)\n"
+            "take()\n"
+            "turn_right(2)\n"
+            "move(2)\n")
 
         btn_frame = tk.Frame(frame)
         btn_frame.pack(fill="x", pady=3)
@@ -314,20 +304,18 @@ class RobotSimulatorApp:
         self.speed_label.config(text=f"{val} мс")
 
     def _parse_commands(self):
-        """Парсит команды из редактора кода."""
         text = self.code.get("1.0", tk.END)
         return [line.strip() for line in text.splitlines()
                 if line.strip() and not line.strip().startswith("#")]
 
     def _start_run(self):
-        """Запуск или продолжение выполнения."""
         new_commands = self._parse_commands()
 
         if self.last_program_text != self.code.get("1.0", tk.END):
             if self.current_index > 0:
                 old_commands = self.commands
                 if new_commands[:self.current_index] == old_commands[:self.current_index]:
-                    pass  # продолжаем
+                    pass
                 else:
                     self._reset_robot_state()
                     self.current_index = 0
@@ -348,7 +336,6 @@ class RobotSimulatorApp:
         self._run_next()
 
     def _run_next(self):
-        """Выполняет следующую команду с задержкой."""
         if not self.running:
             return
         if self.current_index >= len(self.commands):
@@ -364,7 +351,6 @@ class RobotSimulatorApp:
         self.root.after(self.delay, self._run_next)
 
     def _step(self):
-        """Выполнить одну команду вручную."""
         new_commands = self._parse_commands()
 
         if self.last_program_text != self.code.get("1.0", tk.END):
@@ -401,11 +387,20 @@ class RobotSimulatorApp:
         self.btn_run.config(state="normal")
         self.btn_step.config(state="normal")
         self.btn_pause.config(state="disabled")
+        
         if self.robot.at_goal(self.world):
             msg = "🎉 Робот достиг цели!"
             if self.robot.cargo:
                 msg += f" (с грузом '{self.robot.cargo}')"
             self.status.config(text=msg, fg="green")
+            
+            # <-- ДОБАВЛЕНО: Всплывающее окно о прохождении уровня
+            collected = self.total_items - len(self.world.items)
+            messagebox.showinfo(
+                "Победа!", 
+                f"Уровень пройден!\nМонет собрано: {collected}/{self.total_items}"
+            )
+            
         else:
             self.status.config(
                 text=f"Робот на ({self.robot.x},{self.robot.y}), "
@@ -413,13 +408,16 @@ class RobotSimulatorApp:
         self.current_label.config(text="✅ Программа завершена", fg="green")
 
     def _reset_robot_state(self):
-        """Сбрасывает только состояние робота, не мир."""
         self.robot = Robot(0, 0)
         self.world = World(10, 10)
         for x, y in [(3, 3), (3, 4), (3, 5), (5, 5), (6, 5), (7, 5), (7, 3)]:
             self.world.add_obstacle(x, y)
         self.world.add_item(2, 2, "коробка")
         self.world.add_item(8, 8, "посылка")
+        
+        # <-- ДОБАВЛЕНО: обновляем счетчик при сбросе
+        self.total_items = len(self.world.items)
+        
         self.world.set_goal(9, 9)
         self.robot.log.clear()
 
@@ -459,24 +457,20 @@ class RobotSimulatorApp:
             self.canvas.create_text(gx*C+C//2, gy*C+C//2, text="Ф",
                                     font=("Arial", 16, "bold"))
 
-        # ========== ОТРИСОВКА СЛЕДА (PAINT) ==========
         if len(self.robot.paint_trail) > 1:
             for i in range(len(self.robot.paint_trail) - 1):
                 x1, y1 = self.robot.paint_trail[i]
                 x2, y2 = self.robot.paint_trail[i+1]
-                # Рисуем линию между центрами клеток
                 self.canvas.create_line(
                     x1 * C + C//2, y1 * C + C//2,
                     x2 * C + C//2, y2 * C + C//2,
                     fill="purple", width=int(C * 0.6), capstyle="round"
                 )
-        # Рисуем точку на текущей позиции, если режим рисования был активен
         if self.robot.paint_trail:
             x, y = self.robot.paint_trail[-1]
             self.canvas.create_oval(x*C + C//2 - 5, y*C + C//2 - 5, 
                                     x*C + C//2 + 5, y*C + C//2 + 5, 
                                     fill="purple", outline="")
-        # ==============================================
 
         rx, ry = self.robot.x, self.robot.y
         self.canvas.create_oval(rx*C+5, ry*C+5,
