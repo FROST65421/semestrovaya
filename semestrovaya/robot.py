@@ -36,6 +36,10 @@ class Robot:
         self.dir_index = 1  # смотрит вправо
         self.cargo = None
         self.log = []
+        
+        # Новые атрибуты для рисования
+        self.is_painting = False
+        self.paint_trail = []  # Список координат (x, y) для отрисовки линии
 
     @property
     def direction(self):
@@ -58,6 +62,8 @@ class Robot:
         if world.is_free(nx, ny):
             self.x, self.y = nx, ny
             self._log(f"Двинулся на ({self.x},{self.y})")
+            if self.is_painting:
+                self.paint_trail.append((self.x, self.y))
             return True
         else:
             self._log(f"Стена/препятствие впереди! Стою на ({self.x},{self.y})")
@@ -96,6 +102,48 @@ class Robot:
 
     def at_goal(self, world):
         return world.goal and (self.x, self.y) == world.goal
+
+    # ========== НОВЫЕ МЕТОДЫ РОБОТА ==========
+    
+    def jump(self, world):
+        """Прыжок через одну клетку. Промежуточная клетка может быть препятствием."""
+        dx, dy = self.DIRECTIONS[self.dir_index]
+        nx, ny = self.x + 2 * dx, self.y + 2 * dy
+        
+        if 0 <= nx < world.width and 0 <= ny < world.height and (nx, ny) not in world.obstacles:
+            self.x, self.y = nx, ny
+            self._log(f"Перепрыгнул на ({self.x},{self.y})")
+            if self.is_painting:
+                self.paint_trail.append((self.x, self.y))
+            return True
+        else:
+            self._log(f"Прыжок невозможен: выход за границы или препятствие в точке приземления ({nx},{ny})")
+            return False
+
+    def break_wall(self, world):
+        """Ломает препятствие прямо перед роботом, если оно есть."""
+        dx, dy = self.DIRECTIONS[self.dir_index]
+        nx, ny = self.x + dx, self.y + dy
+        
+        if (nx, ny) in world.obstacles:
+            world.obstacles.remove((nx, ny))
+            self._log(f"Сломал препятствие на ({nx},{ny})")
+            return True
+        else:
+            self._log("Спереди нет препятствия, ломать нечего")
+            return False
+
+    def start_paint(self):
+        """Включает режим рисования."""
+        self.is_painting = True
+        if (self.x, self.y) not in self.paint_trail:
+            self.paint_trail.append((self.x, self.y))
+        self._log("Режим рисования включен")
+
+    def stop_paint(self):
+        """Выключает режим рисования."""
+        self.is_painting = False
+        self._log("Режим рисования выключен")
 
 
 # ========== ИНТЕРПРЕТАТОР ОДНОЙ КОМАНДЫ ==========
@@ -139,6 +187,17 @@ def execute_one_command(robot, world, cmd_text):
             robot.take(world)
         elif name == "drop":
             robot.drop(world)
+        # Новые команды
+        elif name == "jump":
+            result = robot.jump(world)
+            if not result:
+                break
+        elif name == "break":
+            robot.break_wall(world)
+        elif name == "paint":
+            robot.start_paint()
+        elif name == "stop_paint":
+            robot.stop_paint()
         else:
             robot._log(f"Неизвестная команда: '{name}'")
             break
@@ -191,17 +250,21 @@ class RobotSimulatorApp:
         self.code.pack()
         self.code.insert("1.0",
             "# Пример программы\n"
-            "# move(7) - двигаться 7 раз\n"
+            "# move(n) - двигаться n раз\n"
+            "# jump() - прыжок через 1 клетку\n"
+            "# break() - сломать стену перед собой\n"
+            "# paint() / stop_paint() - рисовать след\n"
             "move(2)\n"
             "turn_right()\n"
+            "move(1)\n"
+            "paint()\n"
             "move(2)\n"
-            "scan()\n"
-            "take()\n"
-            "turn_right(2)\n"
-            "move(3)\n"
-            "turn_left()\n"
-            "move(3)\n"
-            "drop()\n")
+            "jump()\n"
+            "stop_paint()\n"
+            "turn_right()\n"
+            "move(1)\n"
+            "break()\n"
+            "move(1)\n")
 
         btn_frame = tk.Frame(frame)
         btn_frame.pack(fill="x", pady=3)
@@ -395,6 +458,25 @@ class RobotSimulatorApp:
                                          width=2)
             self.canvas.create_text(gx*C+C//2, gy*C+C//2, text="Ф",
                                     font=("Arial", 16, "bold"))
+
+        # ========== ОТРИСОВКА СЛЕДА (PAINT) ==========
+        if len(self.robot.paint_trail) > 1:
+            for i in range(len(self.robot.paint_trail) - 1):
+                x1, y1 = self.robot.paint_trail[i]
+                x2, y2 = self.robot.paint_trail[i+1]
+                # Рисуем линию между центрами клеток
+                self.canvas.create_line(
+                    x1 * C + C//2, y1 * C + C//2,
+                    x2 * C + C//2, y2 * C + C//2,
+                    fill="purple", width=int(C * 0.6), capstyle="round"
+                )
+        # Рисуем точку на текущей позиции, если режим рисования был активен
+        if self.robot.paint_trail:
+            x, y = self.robot.paint_trail[-1]
+            self.canvas.create_oval(x*C + C//2 - 5, y*C + C//2 - 5, 
+                                    x*C + C//2 + 5, y*C + C//2 + 5, 
+                                    fill="purple", outline="")
+        # ==============================================
 
         rx, ry = self.robot.x, self.robot.y
         self.canvas.create_oval(rx*C+5, ry*C+5,
