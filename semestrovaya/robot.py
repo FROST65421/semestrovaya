@@ -268,14 +268,15 @@ class RobotSimulatorApp:
                            command=lambda c=cmd: self._add_command(c))
             btn.grid(row=0, column=i, padx=1)
         
-        # Команды поворота
+               # Команды поворота
         tk.Label(cmd_panel, text="Поворот:", font=("Arial", 9), bg="#f0f0f0").grid(row=2, column=0, sticky="w", pady=2)
         
         turn_btns = tk.Frame(cmd_panel, bg="#f0f0f0")
         turn_btns.grid(row=3, column=0, sticky="w", pady=2)
         
-        for i, cmd in enumerate(["turn_left()", "turn_right()", "turn_right(2)", "turn_right(3)"]):
-            btn = tk.Button(turn_btns, text=cmd, width=10, font=("Consolas", 9),
+        # Изменен список команд и увеличена ширина кнопок до 12
+        for i, cmd in enumerate(["turn_left()", "turn_right()", "turn_left(2)", "turn_right(2)"]):
+            btn = tk.Button(turn_btns, text=cmd, width=12, font=("Consolas", 9),
                            command=lambda c=cmd: self._add_command(c))
             btn.grid(row=0, column=i, padx=1)
         
