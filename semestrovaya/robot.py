@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox  # <-- ДОБАВЛЕНО: для всплывающего окна
+from tkinter import messagebox
 
 # ========== МИР ==========
 class World:
@@ -28,17 +28,15 @@ class World:
 
 # ========== РОБОТ ==========
 class Robot:
-    DIRECTIONS = [(0, -1), (1, 0), (0, 1), (-1, 0)]  # up, right, down, left
+    DIRECTIONS = [(0, -1), (1, 0), (0, 1), (-1, 0)]
     DIR_NAMES = ["↑", "→", "↓", "←"]
 
     def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
-        self.dir_index = 1  # смотрит вправо
+        self.dir_index = 1
         self.cargo = None
         self.log = []
-        
-        # Атрибуты для рисования
         self.is_painting = False
         self.paint_trail = []
 
@@ -207,10 +205,7 @@ class RobotSimulatorApp:
             self.world.add_obstacle(x, y)
         self.world.add_item(2, 2, "коробка")
         self.world.add_item(8, 8, "посылка")
-        
-        # <-- ДОБАВЛЕНО: запоминаем общее количество предметов на уровне
         self.total_items = len(self.world.items)
-        
         self.world.set_goal(9, 9)
 
         self.robot = Robot(0, 0)
@@ -256,6 +251,57 @@ class RobotSimulatorApp:
             "turn_right(2)\n"
             "move(2)\n")
 
+        # ========== ПАНЕЛЬ КОМАНД ==========
+        tk.Label(frame, text="Команды:", font=("Arial", 10, "bold")).pack(pady=(5, 2))
+        
+        cmd_panel = tk.Frame(frame, bg="#f0f0f0", padx=5, pady=5)
+        cmd_panel.pack(fill="x", pady=3)
+        
+        # Команды движения
+        tk.Label(cmd_panel, text="Движение:", font=("Arial", 9), bg="#f0f0f0").grid(row=0, column=0, sticky="w", pady=2)
+        
+        move_btns = tk.Frame(cmd_panel, bg="#f0f0f0")
+        move_btns.grid(row=1, column=0, sticky="w", pady=2)
+        
+        for i, cmd in enumerate(["move()", "move(2)", "move(3)", "move(5)", "jump()"]):
+            btn = tk.Button(move_btns, text=cmd, width=8, font=("Consolas", 9),
+                           command=lambda c=cmd: self._add_command(c))
+            btn.grid(row=0, column=i, padx=1)
+        
+        # Команды поворота
+        tk.Label(cmd_panel, text="Поворот:", font=("Arial", 9), bg="#f0f0f0").grid(row=2, column=0, sticky="w", pady=2)
+        
+        turn_btns = tk.Frame(cmd_panel, bg="#f0f0f0")
+        turn_btns.grid(row=3, column=0, sticky="w", pady=2)
+        
+        for i, cmd in enumerate(["turn_left()", "turn_right()", "turn_right(2)", "turn_right(3)"]):
+            btn = tk.Button(turn_btns, text=cmd, width=10, font=("Consolas", 9),
+                           command=lambda c=cmd: self._add_command(c))
+            btn.grid(row=0, column=i, padx=1)
+        
+        # Команды действий
+        tk.Label(cmd_panel, text="Действия:", font=("Arial", 9), bg="#f0f0f0").grid(row=4, column=0, sticky="w", pady=2)
+        
+        action_btns = tk.Frame(cmd_panel, bg="#f0f0f0")
+        action_btns.grid(row=5, column=0, sticky="w", pady=2)
+        
+        for i, cmd in enumerate(["scan()", "take()", "drop()", "break()"]):
+            btn = tk.Button(action_btns, text=cmd, width=9, font=("Consolas", 9),
+                           command=lambda c=cmd: self._add_command(c))
+            btn.grid(row=0, column=i, padx=1)
+        
+        # Команды рисования
+        tk.Label(cmd_panel, text="Рисование:", font=("Arial", 9), bg="#f0f0f0").grid(row=6, column=0, sticky="w", pady=2)
+        
+        paint_btns = tk.Frame(cmd_panel, bg="#f0f0f0")
+        paint_btns.grid(row=7, column=0, sticky="w", pady=2)
+        
+        for i, cmd in enumerate(["paint()", "stop_paint()"]):
+            btn = tk.Button(paint_btns, text=cmd, width=10, font=("Consolas", 9),
+                           command=lambda c=cmd: self._add_command(c))
+            btn.grid(row=0, column=i, padx=1)
+        # ========================================
+
         btn_frame = tk.Frame(frame)
         btn_frame.pack(fill="x", pady=3)
 
@@ -298,6 +344,11 @@ class RobotSimulatorApp:
         self.status = tk.Label(self.root, text="Готов", bd=1, relief="sunken",
                                anchor="w")
         self.status.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+
+    def _add_command(self, cmd):
+        """Добавляет команду в редактор кода."""
+        self.code.insert(tk.END, cmd + "\n")
+        self.code.see(tk.END)  # Прокручивает к концу
 
     def _change_speed(self, val):
         self.delay = int(val)
@@ -394,7 +445,6 @@ class RobotSimulatorApp:
                 msg += f" (с грузом '{self.robot.cargo}')"
             self.status.config(text=msg, fg="green")
             
-            # <-- ДОБАВЛЕНО: Всплывающее окно о прохождении уровня
             collected = self.total_items - len(self.world.items)
             messagebox.showinfo(
                 "Победа!", 
@@ -414,10 +464,7 @@ class RobotSimulatorApp:
             self.world.add_obstacle(x, y)
         self.world.add_item(2, 2, "коробка")
         self.world.add_item(8, 8, "посылка")
-        
-        # <-- ДОБАВЛЕНО: обновляем счетчик при сбросе
         self.total_items = len(self.world.items)
-        
         self.world.set_goal(9, 9)
         self.robot.log.clear()
 
